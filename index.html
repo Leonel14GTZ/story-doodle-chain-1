@@ -18,6 +18,7 @@
 <body class="bg-slate-100 min-h-screen flex items-center justify-center p-3 sm:p-4">
   <main class="w-full max-w-lg bg-white rounded-2xl shadow-lg border border-slate-200 p-6 sm:p-8">
     
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <!-- STAGE 1: LOBBY SETUP -->
     <div id="stageLobby" class="space-y-5">
       <div class="text-center">
@@ -449,17 +450,17 @@
         stage: stageLobby.classList.contains('hidden') ? (stageTurn.classList.contains('hidden') ? 'reveal' : 'turn') : 'lobby'
       };
 
+
       if (syncChannel) {
         syncChannel.postMessage(payload);
       }
 
-      /* 
-      // TO SYNC TO FIREBASE ACROSS PHONES:
-      // In your deployed app, simply send the payload to your Firebase Realtime Database:
-      if (window.firebaseDb) {
-        window.firebaseDb.ref('rooms/' + roomCode).set(payload);
+      // Send to all connected phones via internet WebSocket
+      if (mqttClient && isConnectedToCloud) {
+        const topic = 'sdc_room_' + roomCode.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        mqttClient.publish(topic, JSON.stringify(payload));
       }
-      */
+
     }
 
     function handleIncomingSync(data) {
@@ -482,8 +483,65 @@
       }
     }
 
-    // Initialize sync for default room
-    initSyncChannel(roomCode);
+    
+    // TRUE CROSS-PHONE INTERNET REALTIME SYNC (via free public WebSocket relay)
+    let mqttClient = null;
+    let isConnectedToCloud = false;
+
+    // Read room code from URL if opened from invite link
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlRoom = urlParams.get('room');
+    if (urlRoom) {
+      roomCode = urlRoom.toUpperCase();
+      isOnlineMode = true;
+      roomCodeDisplay.textContent = roomCode;
+      tabOnlineRoomBtn.className = 'py-1.5 px-3 rounded-lg text-xs font-bold border transition bg-white border-indigo-600 text-indigo-600 shadow-sm';
+      tabPassPlayBtn.className = 'py-1.5 px-3 rounded-lg text-xs font-bold border transition bg-indigo-100/50 border-transparent text-indigo-700 hover:bg-indigo-100';
+      onlineRoomDetails.classList.remove('hidden');
+    }
+
+    function connectCloudSync(roomId) {
+      if (typeof mqtt === 'undefined') return;
+      if (mqttClient) {
+        try { mqttClient.end(); } catch (e) {}
+      }
+
+      const statusBadge = document.querySelector('#liveSyncStatusBanner span.font-semibold span:last-child');
+      if (statusBadge) statusBadge.textContent = 'Connecting to room...';
+
+      const topic = 'sdc_room_' + roomId.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
+      try {
+        mqttClient = mqtt.connect('wss://broker.hivemq.com:8884/mqtt', {
+          clientId: 'sdc_' + Math.random().toString(16).substring(2, 10),
+          clean: true,
+          connectTimeout: 4000
+        });
+
+        mqttClient.on('connect', () => {
+          isConnectedToCloud = true;
+          mqttClient.subscribe(topic);
+          if (statusBadge) statusBadge.textContent = 'Connected Live to Room: ' + roomId;
+        });
+
+        mqttClient.on('message', (t, msg) => {
+          try {
+            const data = JSON.parse(msg.toString());
+            handleIncomingSync(data);
+          } catch (e) {}
+        });
+
+        mqttClient.on('error', () => {
+          isConnectedToCloud = false;
+        });
+      } catch (err) {
+        isConnectedToCloud = false;
+      }
+    }
+
+    // Connect to room immediately
+    connectCloudSync(roomCode);
+
 
     renderPlayerTags();
           });
@@ -572,17 +630,17 @@
         stage: stageLobby.classList.contains('hidden') ? (stageTurn.classList.contains('hidden') ? 'reveal' : 'turn') : 'lobby'
       };
 
+
       if (syncChannel) {
         syncChannel.postMessage(payload);
       }
 
-      /* 
-      // TO SYNC TO FIREBASE ACROSS PHONES:
-      // In your deployed app, simply send the payload to your Firebase Realtime Database:
-      if (window.firebaseDb) {
-        window.firebaseDb.ref('rooms/' + roomCode).set(payload);
+      // Send to all connected phones via internet WebSocket
+      if (mqttClient && isConnectedToCloud) {
+        const topic = 'sdc_room_' + roomCode.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        mqttClient.publish(topic, JSON.stringify(payload));
       }
-      */
+
     }
 
     function handleIncomingSync(data) {
@@ -605,8 +663,65 @@
       }
     }
 
-    // Initialize sync for default room
-    initSyncChannel(roomCode);
+    
+    // TRUE CROSS-PHONE INTERNET REALTIME SYNC (via free public WebSocket relay)
+    let mqttClient = null;
+    let isConnectedToCloud = false;
+
+    // Read room code from URL if opened from invite link
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlRoom = urlParams.get('room');
+    if (urlRoom) {
+      roomCode = urlRoom.toUpperCase();
+      isOnlineMode = true;
+      roomCodeDisplay.textContent = roomCode;
+      tabOnlineRoomBtn.className = 'py-1.5 px-3 rounded-lg text-xs font-bold border transition bg-white border-indigo-600 text-indigo-600 shadow-sm';
+      tabPassPlayBtn.className = 'py-1.5 px-3 rounded-lg text-xs font-bold border transition bg-indigo-100/50 border-transparent text-indigo-700 hover:bg-indigo-100';
+      onlineRoomDetails.classList.remove('hidden');
+    }
+
+    function connectCloudSync(roomId) {
+      if (typeof mqtt === 'undefined') return;
+      if (mqttClient) {
+        try { mqttClient.end(); } catch (e) {}
+      }
+
+      const statusBadge = document.querySelector('#liveSyncStatusBanner span.font-semibold span:last-child');
+      if (statusBadge) statusBadge.textContent = 'Connecting to room...';
+
+      const topic = 'sdc_room_' + roomId.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
+      try {
+        mqttClient = mqtt.connect('wss://broker.hivemq.com:8884/mqtt', {
+          clientId: 'sdc_' + Math.random().toString(16).substring(2, 10),
+          clean: true,
+          connectTimeout: 4000
+        });
+
+        mqttClient.on('connect', () => {
+          isConnectedToCloud = true;
+          mqttClient.subscribe(topic);
+          if (statusBadge) statusBadge.textContent = 'Connected Live to Room: ' + roomId;
+        });
+
+        mqttClient.on('message', (t, msg) => {
+          try {
+            const data = JSON.parse(msg.toString());
+            handleIncomingSync(data);
+          } catch (e) {}
+        });
+
+        mqttClient.on('error', () => {
+          isConnectedToCloud = false;
+        });
+      } catch (err) {
+        isConnectedToCloud = false;
+      }
+    }
+
+    // Connect to room immediately
+    connectCloudSync(roomCode);
+
 
     renderPlayerTags();
       newPlayerInput.value = '';
@@ -999,17 +1114,17 @@
         stage: stageLobby.classList.contains('hidden') ? (stageTurn.classList.contains('hidden') ? 'reveal' : 'turn') : 'lobby'
       };
 
+
       if (syncChannel) {
         syncChannel.postMessage(payload);
       }
 
-      /* 
-      // TO SYNC TO FIREBASE ACROSS PHONES:
-      // In your deployed app, simply send the payload to your Firebase Realtime Database:
-      if (window.firebaseDb) {
-        window.firebaseDb.ref('rooms/' + roomCode).set(payload);
+      // Send to all connected phones via internet WebSocket
+      if (mqttClient && isConnectedToCloud) {
+        const topic = 'sdc_room_' + roomCode.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        mqttClient.publish(topic, JSON.stringify(payload));
       }
-      */
+
     }
 
     function handleIncomingSync(data) {
@@ -1032,8 +1147,65 @@
       }
     }
 
-    // Initialize sync for default room
-    initSyncChannel(roomCode);
+    
+    // TRUE CROSS-PHONE INTERNET REALTIME SYNC (via free public WebSocket relay)
+    let mqttClient = null;
+    let isConnectedToCloud = false;
+
+    // Read room code from URL if opened from invite link
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlRoom = urlParams.get('room');
+    if (urlRoom) {
+      roomCode = urlRoom.toUpperCase();
+      isOnlineMode = true;
+      roomCodeDisplay.textContent = roomCode;
+      tabOnlineRoomBtn.className = 'py-1.5 px-3 rounded-lg text-xs font-bold border transition bg-white border-indigo-600 text-indigo-600 shadow-sm';
+      tabPassPlayBtn.className = 'py-1.5 px-3 rounded-lg text-xs font-bold border transition bg-indigo-100/50 border-transparent text-indigo-700 hover:bg-indigo-100';
+      onlineRoomDetails.classList.remove('hidden');
+    }
+
+    function connectCloudSync(roomId) {
+      if (typeof mqtt === 'undefined') return;
+      if (mqttClient) {
+        try { mqttClient.end(); } catch (e) {}
+      }
+
+      const statusBadge = document.querySelector('#liveSyncStatusBanner span.font-semibold span:last-child');
+      if (statusBadge) statusBadge.textContent = 'Connecting to room...';
+
+      const topic = 'sdc_room_' + roomId.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
+      try {
+        mqttClient = mqtt.connect('wss://broker.hivemq.com:8884/mqtt', {
+          clientId: 'sdc_' + Math.random().toString(16).substring(2, 10),
+          clean: true,
+          connectTimeout: 4000
+        });
+
+        mqttClient.on('connect', () => {
+          isConnectedToCloud = true;
+          mqttClient.subscribe(topic);
+          if (statusBadge) statusBadge.textContent = 'Connected Live to Room: ' + roomId;
+        });
+
+        mqttClient.on('message', (t, msg) => {
+          try {
+            const data = JSON.parse(msg.toString());
+            handleIncomingSync(data);
+          } catch (e) {}
+        });
+
+        mqttClient.on('error', () => {
+          isConnectedToCloud = false;
+        });
+      } catch (err) {
+        isConnectedToCloud = false;
+      }
+    }
+
+    // Connect to room immediately
+    connectCloudSync(roomCode);
+
 
     renderPlayerTags();
   </script>
