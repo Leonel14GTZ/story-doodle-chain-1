@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Story & Doodle Chain - Collaborative Party Game</title>
+  
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    #turnCanvas { touch-action: none; cursor: crosshair; }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen flex items-center justify-center p-3 sm:p-4">
+  <main class="w-full max-w-lg bg-white rounded-2xl shadow-lg border border-slate-200 p-6 sm:p-8">
+    
+    <!-- STAGE 1: LOBBY SETUP -->
+    <div id="stageLobby" class="space-y-5">
+      <div class="text-center">
+        <div class="inline-flex items-center justify-center w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl text-2xl font-bold mb-3">
+          🎭
+        </div>
+        <h1 class="text-2xl font-bold text-slate-800">Story & Doodle Chain</h1>
+        <p class="text-xs text-slate-500 mt-1">
+          The ultimate collaborative party game! Pass the device, contribute clues, and watch the hilarious transformation unfold.
+        </p>
+      </div>
+
+      
+      <!-- Multiplayer Connection Type -->
+      <div class="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-2.5">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold uppercase tracking-wider text-indigo-900 flex items-center gap-1.5">
+            <span>🌐</span>
+            <span>Multiplayer Connection</span>
+          </span>
+          <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">Ready to Connect</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" id="tabPassPlayBtn" class="py-1.5 px-3 rounded-lg text-xs font-bold border transition bg-white border-indigo-600 text-indigo-600 shadow-sm">
+            📱 Pass & Play
+          </button>
+          <button type="button" id="tabOnlineRoomBtn" class="py-1.5 px-3 rounded-lg text-xs font-bold border transition bg-indigo-100/50 border-transparent text-indigo-700 hover:bg-indigo-100">
+            ☁️ Online Room
+          </button>
+        </div>
+        
+        <!-- Online Room Code Details -->
+
+        <!-- Live Sync Status Banner -->
+        <div id="liveSyncStatusBanner" class="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs flex items-center justify-between text-emerald-800">
+          <span class="flex items-center gap-1.5 font-semibold">
+            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Live Sync Engine Active</span>
+          </span>
+          <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-white border border-emerald-300">BroadcastChannel & Firebase Ready</span>
+        </div>
+
+        <div id="onlineRoomDetails" class="hidden pt-2 border-t border-indigo-100 space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-500 font-medium">Room Code:</span>
+            <span id="roomCodeDisplay" class="font-mono font-bold text-sm px-2.5 py-0.5 rounded-md bg-white border border-indigo-200 text-indigo-700">DOODLE-74</span>
+          </div>
+          <button type="button" id="copyRoomLinkBtn" class="w-full py-2 px-3 bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-700 font-semibold rounded-lg text-xs transition flex items-center justify-center gap-1.5 shadow-sm">
+            <span id="copyLinkIcon">🔗</span>
+            <span id="copyLinkText">Copy Invite Link</span>
+          </button>
+          <p class="text-[10px] text-slate-500 text-center">
+            Friends open this link on their phones to join this room instantly via realtime cloud sync.
+          </p>
+        </div>
+      </div>
+
+      <!-- Mode Selector -->
+      <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl">
+        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Game Mode</label>
+        <div class="grid grid-cols-2 gap-2" id="modeGroup">
+          <button
+            type="button"
+            id="modeStoryOnlyBtn"
+            class="mode-btn py-2 px-3 rounded-lg text-xs font-bold border transition bg-white border-indigo-600 text-indigo-600 shadow-sm"
+          >
+            📝 Story Chain
+          </button>
+          <button
+            type="button"
+            id="modeDoodleComboBtn"
+            class="mode-btn py-2 px-3 rounded-lg text-xs font-bold border transition bg-slate-100 border-transparent text-slate-600 hover:bg-slate-200"
+          >
+            🎨 Telestrations Combo
+          </button>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-2" id="modeDescription">
+          Each player writes one sentence knowing only the previous line.
+        </p>
+      </div>
+
+      <!-- Player List Form -->
+      <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Group Players (Min 2)</label>
+        <div id="playerTagsContainer" class="flex flex-wrap gap-2 mb-3"></div>
+        <form id="addPlayerForm" class="flex gap-2">
+          <input
+            type="text"
+            id="newPlayerInput"
+            placeholder="Enter player name..."
+            maxlength="20"
+            class="flex-1 px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+          />
+          <button
+            type="submit"
+            class="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-xl text-xs border border-indigo-200 transition"
+          >
+            + Add
+          </button>
+        </form>
+      </div>
+
+      <!-- Starting Theme / Secret Prompt -->
+      <div>
+        <label for="starterSelect" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5" id="starterLabel">Opening Sentence</label>
+        <select
+          id="starterSelect"
+          class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-medium text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          <option value="A dancing octopus eating pizza on a surfboard">A dancing octopus eating pizza on a surfboard</option>
+          <option value="A secret agent cat trying to diffuse a ticking alarm clock">A secret agent cat trying to diffuse a ticking alarm clock</option>
+          <option value="An astronaut discovering that the moon is made of cheese">An astronaut discovering that the moon is made of cheese</option>
+          <option value="A wizard accidentally turning his wand into a banana">A wizard accidentally turning his wand into a banana</option>
+          <option value="custom">✍️ Write a custom starter...</option>
+        </select>
+        <input
+          type="text"
+          id="customStarterInput"
+          placeholder="Type your group's custom starter..."
+          class="hidden w-full mt-2 px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
+
+      <button
+        type="button"
+        id="startGameBtn"
+        class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-sm transition flex items-center justify-center gap-2"
+      >
+        <span>🚀</span>
+        <span>Start Story Chain</span>
+      </button>
+    </div>
+
+    <!-- STAGE 2: PASS-THE-DEVICE TURN -->
+    <div id="stageTurn" class="hidden space-y-4">
+      <!-- Player Turn Indicator -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div class="flex items-center gap-2">
+          <span class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center" id="turnNumberBadge">1</span>
+          <div>
+            <span class="text-xs text-slate-400 font-medium">Pass device to:</span>
+            <h2 class="text-base font-bold text-slate-800" id="currentTurnPlayerName">Alex</h2>
+          </div>
+        </div>
+        <span class="text-xs font-semibold text-slate-500" id="turnProgressText">Turn 1 of 3</span>
+      </div>
+
+      <!-- Clue Section: Either Text Clue or Drawing Clue -->
+      <div class="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-2" id="clueContainer">
+        <div class="flex items-center gap-1.5 text-amber-700 text-xs font-bold uppercase tracking-wider">
+          <span id="clueIcon">👀</span>
+          <span id="clueHeading">Your Clue From Previous Player:</span>
+        </div>
+        <div id="textClueBox" data-prev="true" class="text-sm font-semibold text-slate-800 italic"></div>
+        <div id="drawingClueBox" class="hidden flex justify-center py-1">
+          <img id="drawingClueImg" class="rounded-lg border border-slate-300 max-h-48 shadow-sm bg-white" alt="Previous player's drawing" />
+        </div>
+      </div>
+
+      <!-- Turn Action Form: Writing Mode -->
+      <form id="textTurnForm" data-legacy="submitTurnForm" class="space-y-3">
+        <div>
+          <label for="sentenceInput" class="block text-xs font-semibold text-slate-600 mb-1.5" id="textTurnPromptLabel">
+            Describe what you see or write the next sentence:
+          </label>
+          <textarea
+            id="sentenceInput"
+            rows="3"
+            placeholder="Add your contribution here..."
+            required
+            class="w-full p-3 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition resize-none"
+          ></textarea>
+        </div>
+        <button
+          type="submit"
+          class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-sm transition flex items-center justify-center gap-2"
+        >
+          <span>Pass to Next Player</span>
+          <span>→</span>
+        </button>
+      </form>
+
+      <!-- Turn Action Form: Drawing Mode -->
+      <div id="drawingTurnContainer" class="hidden space-y-3">
+        <p class="text-xs font-semibold text-slate-600">
+          Draw what is described above! (Don't write words)
+        </p>
+        
+        <div class="relative bg-slate-50 border-2 border-slate-200 rounded-xl overflow-hidden shadow-inner flex items-center justify-center" style="height: 240px;" id="canvasHolder">
+          <canvas id="turnCanvas" class="w-full h-full block bg-white"></canvas>
+        </div>
+
+        <!-- Canvas Controls -->
+        <div class="flex items-center justify-between gap-2 pt-1">
+          <div class="flex items-center gap-1.5" id="colorPalette">
+            <button type="button" data-color="#0f172a" class="color-btn w-6 h-6 rounded-full bg-slate-900 border-2 border-indigo-600 shadow-sm" aria-label="Black color"></button>
+            <button type="button" data-color="#e11d48" class="color-btn w-6 h-6 rounded-full bg-rose-600 border-2 border-transparent" aria-label="Red color"></button>
+            <button type="button" data-color="#2563eb" class="color-btn w-6 h-6 rounded-full bg-blue-600 border-2 border-transparent" aria-label="Blue color"></button>
+            <button type="button" data-color="#059669" class="color-btn w-6 h-6 rounded-full bg-emerald-600 border-2 border-transparent" aria-label="Green color"></button>
+            <button type="button" data-color="#d97706" class="color-btn w-6 h-6 rounded-full bg-amber-600 border-2 border-transparent" aria-label="Yellow color"></button>
+          </div>
+          <div class="flex items-center gap-1">
+            <button type="button" id="eraserBtn" class="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600">🧹 Eraser</button>
+            <button type="button" id="clearCanvasBtn" class="px-2.5 py-1 text-xs font-semibold rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-600">🗑️ Clear</button>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          id="submitDrawingBtn"
+          class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-sm transition flex items-center justify-center gap-2"
+        >
+          <span>Done Drawing! Pass to Next Player</span>
+          <span>→</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- STAGE 3: GRAND REVEAL -->
+    <div id="stageReveal" class="hidden space-y-5">
+      <div class="text-center">
+        <span class="text-3xl">🎉</span>
+        <h2 class="text-2xl font-bold text-slate-800 mt-1">The Grand Chain Reveal!</h2>
+        <p class="text-xs text-slate-500">See how your prompt evolved through the group:</p>
+      </div>
+
+      <!-- Story/Drawing Chain Container -->
+      <div id="storyRevealContainer" class="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3.5 max-h-96 overflow-y-auto"></div>
+
+      <!-- Reveal Controls -->
+      <div class="space-y-2">
+        <div class="flex gap-2">
+          <button
+            type="button"
+            id="readAloudBtn"
+            class="flex-1 py-2.5 px-3 bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold rounded-xl text-xs border border-amber-200 transition flex items-center justify-center gap-1.5"
+          >
+            <span id="readIcon">🔊</span>
+            <span id="readText">Read Aloud</span>
+          </button>
+          <button
+            type="button"
+            id="copyStoryBtn"
+            class="flex-1 py-2.5 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-xl text-xs border border-indigo-200 transition flex items-center justify-center gap-1.5"
+          >
+            <span id="copyIcon">📋</span>
+            <span id="copyText">Copy Story</span>
+          </button>
+        </div>
+        <button
+          type="button"
+          id="playAgainBtn"
+          class="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl transition text-sm"
+        >
+          Start a New Story
+        </button>
+      </div>
+    </div>
+
+  <div class="hidden" id="previousSentenceText"></div><form class="hidden" id="submitTurnForm"></form></main>
+
+  <script>
+    // State Variables
+    let gameMode = 'story'; // 'story' or 'combo'
+    let players = ['Taylor', 'Jordan', 'Sam', 'Riley'];
+    let currentTurnIndex = 0;
+    let chainContributions = [];
+    let isSpeaking = false;
+
+    // Drawing Canvas State
+    let isDrawing = false;
+    let currentColor = '#0f172a';
+    let currentLineWidth = 5;
+    let isEraser = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    // Elements
+    const stageLobby = document.getElementById('stageLobby');
+    const stageTurn = document.getElementById('stageTurn');
+    const stageReveal = document.getElementById('stageReveal');
+
+    const modeStoryOnlyBtn = document.getElementById('modeStoryOnlyBtn');
+    const modeDoodleComboBtn = document.getElementById('modeDoodleComboBtn');
+    const modeDescription = document.getElementById('modeDescription');
+    const starterLabel = document.getElementById('starterLabel');
+
+    const playerTagsContainer = document.getElementById('playerTagsContainer');
+    const addPlayerForm = document.getElementById('addPlayerForm');
+    const newPlayerInput = document.getElementById('newPlayerInput');
+    const starterSelect = document.getElementById('starterSelect');
+    const customStarterInput = document.getElementById('customStarterInput');
+    const startGameBtn = document.getElementById('startGameBtn');
+
+    const currentTurnPlayerName = document.getElementById('currentTurnPlayerName');
+    const turnNumberBadge = document.getElementById('turnNumberBadge');
+    const turnProgressText = document.getElementById('turnProgressText');
+
+    const clueIcon = document.getElementById('clueIcon');
+    const clueHeading = document.getElementById('clueHeading');
+    const textClueBox = document.getElementById('textClueBox');
+    const drawingClueBox = document.getElementById('drawingClueBox');
+    const drawingClueImg = document.getElementById('drawingClueImg');
+
+    const textTurnForm = document.getElementById('textTurnForm');
+    const sentenceInput = document.getElementById('sentenceInput');
+    const textTurnPromptLabel = document.getElementById('textTurnPromptLabel');
+
+    const drawingTurnContainer = document.getElementById('drawingTurnContainer');
+    const canvasHolder = document.getElementById('canvasHolder');
+    const canvas = document.getElementById('turnCanvas');
+    const ctx = canvas.getContext('2d');
+    const submitDrawingBtn = document.getElementById('submitDrawingBtn');
+    const eraserBtn = document.getElementById('eraserBtn');
+    const clearCanvasBtn = document.getElementById('clearCanvasBtn');
+    const colorButtons = document.querySelectorAll('.color-btn');
+
+    const storyRevealContainer = document.getElementById('storyRevealContainer');
+    const readAloudBtn = document.getElementById('readAloudBtn');
+    const readIcon = document.getElementById('readIcon');
+    const readText = document.getElementById('readText');
+    const copyStoryBtn = document.getElementById('copyStoryBtn');
+    const copyIcon = document.getElementById('copyIcon');
+    const copyText = document.getElementById('copyText');
+    const playAgainBtn = document.getElementById('playAgainBtn');
+
+    // Mode Selector
+    modeStoryOnlyBtn.addEventListener('click', () => {
+      gameMode = 'story';
+      modeStoryOnlyBtn.className = 'mode-btn py-2 px-3 rounded-lg text-xs font-bold border transition bg-white border-indigo-600 text-indigo-600 shadow-sm';
+      modeDoodleComboBtn.className = 'mode-btn py-2 px-3 rounded-lg text-xs font-bold border transition bg-slate-100 border-transparent text-slate-600 hover:bg-slate-200';
+      modeDescription.textContent = 'Each player writes one sentence knowing only the previous line.';
+      starterLabel.textContent = 'Opening Sentence';
+    });
+
+    modeDoodleComboBtn.addEventListener('click', () => {
+      gameMode = 'combo';
+      modeDoodleComboBtn.className = 'mode-btn py-2 px-3 rounded-lg text-xs font-bold border transition bg-white border-indigo-600 text-indigo-600 shadow-sm';
+      modeStoryOnlyBtn.className = 'mode-btn py-2 px-3 rounded-lg text-xs font-bold border transition bg-slate-100 border-transparent text-slate-600 hover:bg-slate-200';
+      modeDescription.textContent = 'Players alternate between DRAWING the clue and GUESSING what was drawn!';
+      starterLabel.textContent = 'Secret Starting Prompt';
+    });
+
+    // Render Players in Lobby
+    function renderPlayerTags() {
+      playerTagsContainer.innerHTML = '';
+      players.forEach((player, idx) => {
+        const tag = document.createElement('span');
+        tag.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white border border-slate-200 text-slate-700 shadow-sm';
+        tag.innerHTML = `<span>👤 ${player}</span>`;
+
+        if (players.length > 2) {
+          const removeBtn = document.createElement('button');
+          removeBtn.type = 'button';
+          removeBtn.className = 'text-slate-400 hover:text-rose-500 font-bold ml-1';
+          removeBtn.textContent = '✕';
+          removeBtn.addEventListener('click', () => {
+            players.splice(idx, 1);
+            
+    // Online Multiplayer Tab Handlers
+    const tabPassPlayBtn = document.getElementById('tabPassPlayBtn');
+    const tabOnlineRoomBtn = document.getElementById('tabOnlineRoomBtn');
+    const onlineRoomDetails = document.getElementById('onlineRoomDetails');
+    const roomCodeDisplay = document.getElementById('roomCodeDisplay');
+    const copyRoomLinkBtn = document.getElementById('copyRoomLinkBtn');
+    const copyLinkIcon = document.getElementById('copyLinkIcon');
+    const copyLinkText = document.getElementById('copyLinkText');
+
+    let isOnlineMode = false;
+    let roomCode = 'ROOM-' + Math.floor(1000 + Math.random() * 9000);
+    roomCodeDisplay.textContent = roomCode;
+
+    tabPassPlayBtn.addEventListener('click', () => {
+      isOnlineMode = false;
+      tabPassPlayBtn.className = 'py-1.5 px-3 rounded-lg text-xs font-bold border transition bg-white border-indigo-600 text-indigo-600 shadow-sm';
+      tabOnlineRoomBtn.className = 'py-1.5 px-3 rounded-lg text-xs font-bold border transition bg-indigo-100/50 border-transparent text-indigo-700 hover:bg-indigo-100';
+      onlineRoomDetails.classList.add('hidden');
+    });
+
+    tabOnlineRoomBtn.addEventListener('click', () => {
+      isOnlineMode = true;
+      tabOnlineRoomBtn.className = 'py-1.5 px-3 rounded-lg text-xs font-bold border transition bg-white border-indigo-600 text-indigo-600 shadow-sm';
+      tabPassPlayBtn.className = 'py-1.5 px-3 rounded-lg text-xs font-bold border transition bg-indigo-100/50 border-transparent text-indigo-700 hover:bg-indigo-100';
+      onlineRoomDetails.classList.remove('hidden');
+    });
+
+    copyRoomLinkBtn.addEventListener('click', () => {
+      const shareUrl = window.location.origin + window.location.pathname + '?room=' + roomCode;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+          copyLinkIcon.textContent = '✅';
+          copyLinkText.textContent = 'Room Link Copied!';
+          setTimeout(() => {
+            copyLinkIcon.textContent = '🔗';
+            copyLinkText.textContent = 'Copy Invite Link';
+          }, 2000);
+        });
+      }
+    });
+
+    
+    // Realtime Multi-Device / Multi-Tab Synchronization Engine
+    // 1. BroadcastChannel enables instant multi-tab testing on the same device without any API keys.
+    // 2. Firebase Realtime Database connects separate phones anywhere in the world.
+    let syncChannel = null;
+
+    function initSyncChannel(roomId) {
+      if (syncChannel) {
+        syncChannel.close();
+      }
+      try {
+        syncChannel = new BroadcastChannel('story_chain_' + roomId);
+        syncChannel.onmessage = (event) => {
+          handleIncomingSync(event.data);
+        };
+      } catch (err) {
+        // Fallback for environments where BroadcastChannel is restricted
+      }
+    }
+
+    function broadcastGameState() {
+      const payload = {
+        type: 'STATE_UPDATE',
+        room: roomCode,
+        gameMode: gameMode,
+        players: players,
+        currentTurnIndex: currentTurnIndex,
+        chainContributions: chainContributions,
+        stage: stageLobby.classList.contains('hidden') ? (stageTurn.classList.contains('hidden') ? 'reveal' : 'turn') : 'lobby'
+      };
+
+      if (syncChannel) {
+        syncChannel.postMessage(payload);
+      }
+
+      /* 
+      // TO SYNC TO FIREBASE ACROSS PHONES:
+      // In your deployed app, simply send the payload to your Firebase Realtime Database:
+      if (window.firebaseDb) {
+        window.firebaseDb.ref('rooms/' + roomCode).set(payload);
+      }
+      */
+    }
+
+    function handleIncomingSync(data) {
+      if (!data || data.room !== roomCode) return;
+
+      if (data.chainContributions && data.chainContributions.length > 0) {
+        chainContributions = data.chainContributions;
+        currentTurnIndex = data.currentTurnIndex;
+        gameMode = data.gameMode;
+        players = data.players;
+
+        if (data.stage === 'turn') {
+          stageLobby.classList.add('hidden');
+          stageReveal.classList.add('hidden');
+          stageTurn.classList.remove('hidden');
+          loadTurn();
+        } else if (data.stage === 'reveal') {
+          triggerGrandReveal();
+        }
+      }
+    }
+
+    // Initialize sync for default room
+    initSyncChannel(roomCode);
+
+    renderPlayerTags();
+          });
+          tag.appendChild(removeBtn);
+        }
+        playerTagsContainer.appendChild(tag);
+      });
+    }
+
+    addPlayerForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = newPlayerInput.value.trim();
+      if (!name) return;
+      if (players.length >= 8) return;
+      players.push(name);
+      
+    // Online Multiplayer Tab Handlers
+    const tabPassPlayBtn = document.getElementById('tabPassPlayBtn');
+    const tabOnlineRoomBtn = document.getElementById('tabOnlineRoomBtn');
+    const onlineRoomDetails = document.getElementById('onlineRoomDetails');
+    const roomCodeDisplay = document.getElementById('roomCodeDisplay');
+    const copyRoomLinkBtn = document.getElementById('copyRoomLinkBtn');
+    const copyLinkIcon = document.getElementById('copyLinkIcon');
+    const copyLinkText = document.getElementById('copyLinkText');
+
+    let isOnlineMode = false;
+    let roomCode = 'ROOM-' + Math.floor(1000 + Math.random() * 9000);
+    roomCodeDisplay.textContent = roomCode;
+
+    tabPassPlayBtn.addEventListener('click', () => {
+      isOnlineMode = false;
+      tabPassPlayBtn.className = 'py-1.5 px-3 rounded-lg text-xs font-bold border transition bg-white border-indigo-600 text-indigo-600 shadow-sm';
+      tabOnlineRoomBtn.className = 'py-1.5 px-3 rounded-lg text-xs font-bold border transition bg-indigo-100/50 border-transparent text-indigo-700 hover:bg-indigo-100';
+      onlineRoomDetails.classList.add('hidden');
+    });
+
+    tabOnlineRoomBtn.addEventListener('click', () => {
+      isOnlineMode = true;
+      tabOnlineRoomBtn.className = 'py-1.5 px-3 rounded-lg text-xs font-bold border transition bg-white border-indigo-600 text-indigo-600 shadow-sm';
+      tabPassPlayBtn.className = 'py-1.5 px-3 rounded-lg text-xs font-bold border transition bg-indigo-100/50 border-transparent text-indigo-700 hover:bg-indigo-100';
+      onlineRoomDetails.classList.remove('hidden');
+    });
+
+    copyRoomLinkBtn.addEventListener('click', () => {
+      const shareUrl = window.location.origin + window.location.pathname + '?room=' + roomCode;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+          copyLinkIcon.textContent = '✅';
+          copyLinkText.textContent = 'Room Link Copied!';
+          setTimeout(() => {
+            copyLinkIcon.textContent = '🔗';
+            copyLinkText.textContent = 'Copy Invite Link';
+          }, 2000);
+        });
+      }
+    });
+
+    
+    // Realtime Multi-Device / Multi-Tab Synchronization Engine
+    // 1. BroadcastChannel enables instant multi-tab testing on the same device without any API keys.
+    // 2. Firebase Realtime Database connects separate phones anywhere in the world.
+    let syncChannel = null;
+
+    function initSyncChannel(roomId) {
+      if (syncChannel) {
+        syncChannel.close();
+      }
+      try {
+        syncChannel = new BroadcastChannel('story_chain_' + roomId);
+        syncChannel.onmessage = (event) => {
+          handleIncomingSync(event.data);
+        };
+      } catch (err) {
+        // Fallback for environments where BroadcastChannel is restricted
+      }
+    }
+
+    function broadcastGameState() {
+      const payload = {
+        type: 'STATE_UPDATE',
+        room: roomCode,
+        gameMode: gameMode,
+        players: players,
+        currentTurnIndex: currentTurnIndex,
+        chainContributions: chainContributions,
+        stage: stageLobby.classList.contains('hidden') ? (stageTurn.classList.contains('hidden') ? 'reveal' : 'turn') : 'lobby'
+      };
+
+      if (syncChannel) {
+        syncChannel.postMessage(payload);
+      }
+
+      /* 
+      // TO SYNC TO FIREBASE ACROSS PHONES:
+      // In your deployed app, simply send the payload to your Firebase Realtime Database:
+      if (window.firebaseDb) {
+        window.firebaseDb.ref('rooms/' + roomCode).set(payload);
+      }
+      */
+    }
+
+    function handleIncomingSync(data) {
+      if (!data || data.room !== roomCode) return;
+
+      if (data.chainContributions && data.chainContributions.length > 0) {
+        chainContributions = data.chainContributions;
+        currentTurnIndex = data.currentTurnIndex;
+        gameMode = data.gameMode;
+        players = data.players;
+
+        if (data.stage === 'turn') {
+          stageLobby.classList.add('hidden');
+          stageReveal.classList.add('hidden');
+          stageTurn.classList.remove('hidden');
+          loadTurn();
+        } else if (data.stage === 'reveal') {
+          triggerGrandReveal();
+        }
+      }
+    }
+
+    // Initialize sync for default room
+    initSyncChannel(roomCode);
+
+    renderPlayerTags();
+      newPlayerInput.value = '';
+      newPlayerInput.focus();
+    });
+
+    starterSelect.addEventListener('change', () => {
+      if (starterSelect.value === 'custom') {
+        customStarterInput.classList.remove('hidden');
+        customStarterInput.focus();
+      } else {
+        customStarterInput.classList.add('hidden');
+      }
+    });
+
+    // Canvas Setup
+    function initCanvas() {
+      const rect = canvasHolder.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, rect.width, rect.height);
+    }
+
+    function getCoords(e) {
+      const rect = canvas.getBoundingClientRect();
+      let cx = e.clientX, cy = e.clientY;
+      if (e.touches && e.touches.length > 0) {
+        cx = e.touches[0].clientX;
+        cy = e.touches[0].clientY;
+      }
+      return { x: cx - rect.left, y: cy - rect.top };
+    }
+
+    function startDraw(e) {
+      isDrawing = true;
+      const c = getCoords(e);
+      lastX = c.x;
+      lastY = c.y;
+      draw(e);
+    }
+
+    function draw(e) {
+      if (!isDrawing) return;
+      e.preventDefault();
+      const c = getCoords(e);
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(c.x, c.y);
+      ctx.strokeStyle = isEraser ? '#ffffff' : currentColor;
+      ctx.lineWidth = isEraser ? 16 : currentLineWidth;
+      ctx.stroke();
+      lastX = c.x;
+      lastY = c.y;
+    }
+
+    function stopDraw() {
+      isDrawing = false;
+      ctx.beginPath();
+    }
+
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', draw);
+    window.addEventListener('mouseup', stopDraw);
+
+    canvas.addEventListener('touchstart', startDraw, { passive: false });
+    canvas.addEventListener('touchmove', draw, { passive: false });
+    window.addEventListener('touchend', stopDraw);
+
+    colorButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        isEraser = false;
+        eraserBtn.className = 'px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600';
+        currentColor = btn.dataset.color;
+        colorButtons.forEach((b) => b.className = 'color-btn w-6 h-6 rounded-full border-2 border-transparent');
+        btn.className = 'color-btn w-6 h-6 rounded-full border-2 border-indigo-600 shadow-sm';
+      });
+    });
+
+    eraserBtn.addEventListener('click', () => {
+      isEraser = !isEraser;
+      if (isEraser) {
+        eraserBtn.className = 'px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-800 text-white';
+      } else {
+        eraserBtn.className = 'px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600';
+      }
+    });
+
+    clearCanvasBtn.addEventListener('click', () => {
+      const rect = canvasHolder.getBoundingClientRect();
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, rect.width, rect.height);
+    });
+
+    // Start Game
+    startGameBtn.addEventListener('click', () => {
+      if (players.length < 2) return;
+
+      let opening = starterSelect.value;
+      if (opening === 'custom') {
+        opening = customStarterInput.value.trim() || 'A dancing octopus eating pizza';
+      }
+
+      chainContributions = [
+        { author: 'Original Prompt', type: 'text', content: opening }
+      ];
+      broadcastGameState();
+
+      currentTurnIndex = 0;
+      stageLobby.classList.add('hidden');
+      stageReveal.classList.add('hidden');
+      stageTurn.classList.remove('hidden');
+
+      loadTurn();
+    });
+
+    // Load Turn
+    function loadTurn() {
+      const currentPlayer = players[currentTurnIndex];
+      const prevContribution = chainContributions[chainContributions.length - 1];
+
+      currentTurnPlayerName.textContent = currentPlayer;
+      turnNumberBadge.textContent = currentTurnIndex + 1;
+      turnProgressText.textContent = `Turn ${currentTurnIndex + 1} of ${players.length}`;
+
+      // In Combo mode: If previous was text, current player DRAWS. If previous was drawing, current player GUESSES (TEXT).
+      const shouldDraw = (gameMode === 'combo' && prevContribution.type === 'text');
+
+      if (prevContribution.type === 'text') {
+        textClueBox.textContent = `"${prevContribution.content}"`;
+        textClueBox.classList.remove('hidden');
+        drawingClueBox.classList.add('hidden');
+        clueIcon.textContent = '📝';
+        clueHeading.textContent = 'Your Clue (Read This):';
+      } else {
+        drawingClueImg.src = prevContribution.content;
+        drawingClueBox.classList.remove('hidden');
+        textClueBox.classList.add('hidden');
+        clueIcon.textContent = '🎨';
+        clueHeading.textContent = 'Your Clue (Look At This):';
+      }
+
+      if (shouldDraw) {
+        textTurnForm.classList.add('hidden');
+        drawingTurnContainer.classList.remove('hidden');
+        setTimeout(() => {
+          initCanvas();
+        }, 50);
+      } else {
+        drawingTurnContainer.classList.add('hidden');
+        textTurnForm.classList.remove('hidden');
+        textTurnPromptLabel.textContent = (gameMode === 'combo')
+          ? 'Guess what the previous player drew (in one phrase):'
+          : 'Write the next sentence to continue the story:';
+        sentenceInput.value = '';
+        sentenceInput.placeholder = (gameMode === 'combo') ? 'e.g. A cat drinking coffee...' : 'What happens next?';
+        sentenceInput.focus();
+      }
+    }
+
+    // Submit Text Turn
+    textTurnForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const val = sentenceInput.value.trim();
+      if (!val) return;
+
+      chainContributions.push({
+        author: players[currentTurnIndex],
+        type: 'text',
+        content: val
+      });
+
+      advanceTurn();
+    });
+
+    // Submit Drawing Turn
+    submitDrawingBtn.addEventListener('click', () => {
+      const dataUrl = canvas.toDataURL('image/png');
+      chainContributions.push({
+        author: players[currentTurnIndex],
+        type: 'drawing',
+        content: dataUrl
+      });
+
+      advanceTurn();
+    });
+
+    function advanceTurn() {
+      broadcastGameState();
+      currentTurnIndex++;
+      if (currentTurnIndex < players.length) {
+        loadTurn();
+      } else {
+        triggerGrandReveal();
+      }
+    }
+
+    // Grand Reveal
+    function triggerGrandReveal() {
+      stageTurn.classList.add('hidden');
+      stageReveal.classList.remove('hidden');
+
+      if (typeof confetti === 'function') {
+        confetti({
+          particleCount: 110,
+          spread: 85,
+          origin: { y: 0.6 }
+        });
+      }
+
+      storyRevealContainer.innerHTML = '';
+      chainContributions.forEach((part, index) => {
+        const itemCard = document.createElement('div');
+        itemCard.className = 'p-3.5 rounded-xl border bg-white border-slate-200 shadow-sm space-y-2';
+
+        const headerRow = document.createElement('div');
+        headerRow.className = 'flex items-center justify-between text-xs';
+
+        const authorBadge = document.createElement('span');
+        authorBadge.className = 'font-bold uppercase tracking-wider text-[10px] px-2 py-0.5 rounded-md ' +
+          (index === 0 ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-700');
+        authorBadge.textContent = part.author;
+
+        const typeIndicator = document.createElement('span');
+        typeIndicator.className = 'text-slate-400 font-medium text-[11px]';
+        typeIndicator.textContent = part.type === 'text' ? '📝 Guess / Story' : '🎨 Drawing';
+
+        headerRow.appendChild(authorBadge);
+        headerRow.appendChild(typeIndicator);
+        itemCard.appendChild(headerRow);
+
+        if (part.type === 'text') {
+          const textP = document.createElement('p');
+          textP.className = 'text-slate-800 text-sm font-semibold italic';
+          textP.textContent = `"${part.content}"`;
+          itemCard.appendChild(textP);
+        } else {
+          const img = document.createElement('img');
+          img.src = part.content;
+          img.className = 'rounded-lg border border-slate-200 max-h-48 mx-auto shadow-inner bg-white';
+          img.alt = `Drawing by ${part.author}`;
+          itemCard.appendChild(img);
+        }
+
+        storyRevealContainer.appendChild(itemCard);
+      });
+    }
+
+    // Read Aloud
+    readAloudBtn.addEventListener('click', () => {
+      if (!('speechSynthesis' in window)) return;
+
+      if (isSpeaking) {
+        window.speechSynthesis.cancel();
+        isSpeaking = false;
+        readText.textContent = 'Read Aloud';
+        readIcon.textContent = '🔊';
+        return;
+      }
+
+      const textParts = chainContributions
+        .filter(c => c.type === 'text')
+        .map(c => `${c.author} wrote: ${c.content}`)
+        .join('. Then, ');
+
+      const utterance = new SpeechSynthesisUtterance(textParts);
+      utterance.rate = 0.95;
+
+      utterance.onstart = () => {
+        isSpeaking = true;
+        readText.textContent = 'Stop';
+        readIcon.textContent = '⏹️';
+      };
+
+      utterance.onend = utterance.onerror = () => {
+        isSpeaking = false;
+        readText.textContent = 'Read Aloud';
+        readIcon.textContent = '🔊';
+      };
+
+      window.speechSynthesis.speak(utterance);
+    });
+
+    // Copy Summary
+    copyStoryBtn.addEventListener('click', () => {
+      const summary = chainContributions.map(c => {
+        return c.type === 'text' ? `[${c.author}]: "${c.content}"` : `[${c.author}]: (Drew an illustration)`;
+      }).join('\n\n');
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(summary).then(() => {
+          copyText.textContent = 'Copied!';
+          copyIcon.textContent = '✅';
+          setTimeout(() => {
+            copyText.textContent = 'Copy Summary';
+            copyIcon.textContent = '📋';
+          }, 2000);
+        });
+      }
+    });
+
+    // Reset
+    playAgainBtn.addEventListener('click', () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      isSpeaking = false;
+      readText.textContent = 'Read Aloud';
+      readIcon.textContent = '🔊';
+
+      stageReveal.classList.add('hidden');
+      stageTurn.classList.add('hidden');
+      stageLobby.classList.remove('hidden');
+    });
+
+    
+    // Online Multiplayer Tab Handlers
+    const tabPassPlayBtn = document.getElementById('tabPassPlayBtn');
+    const tabOnlineRoomBtn = document.getElementById('tabOnlineRoomBtn');
+    const onlineRoomDetails = document.getElementById('onlineRoomDetails');
+    const roomCodeDisplay = document.getElementById('roomCodeDisplay');
+    const copyRoomLinkBtn = document.getElementById('copyRoomLinkBtn');
+    const copyLinkIcon = document.getElementById('copyLinkIcon');
+    const copyLinkText = document.getElementById('copyLinkText');
+
+    let isOnlineMode = false;
+    let roomCode = 'ROOM-' + Math.floor(1000 + Math.random() * 9000);
+    roomCodeDisplay.textContent = roomCode;
+
+    tabPassPlayBtn.addEventListener('click', () => {
+      isOnlineMode = false;
+      tabPassPlayBtn.className = 'py-1.5 px-3 rounded-lg text-xs font-bold border transition bg-white border-indigo-600 text-indigo-600 shadow-sm';
+      tabOnlineRoomBtn.className = 'py-1.5 px-3 rounded-lg text-xs font-bold border transition bg-indigo-100/50 border-transparent text-indigo-700 hover:bg-indigo-100';
+      onlineRoomDetails.classList.add('hidden');
+    });
+
+    tabOnlineRoomBtn.addEventListener('click', () => {
+      isOnlineMode = true;
+      tabOnlineRoomBtn.className = 'py-1.5 px-3 rounded-lg text-xs font-bold border transition bg-white border-indigo-600 text-indigo-600 shadow-sm';
+      tabPassPlayBtn.className = 'py-1.5 px-3 rounded-lg text-xs font-bold border transition bg-indigo-100/50 border-transparent text-indigo-700 hover:bg-indigo-100';
+      onlineRoomDetails.classList.remove('hidden');
+    });
+
+    copyRoomLinkBtn.addEventListener('click', () => {
+      const shareUrl = window.location.origin + window.location.pathname + '?room=' + roomCode;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+          copyLinkIcon.textContent = '✅';
+          copyLinkText.textContent = 'Room Link Copied!';
+          setTimeout(() => {
+            copyLinkIcon.textContent = '🔗';
+            copyLinkText.textContent = 'Copy Invite Link';
+          }, 2000);
+        });
+      }
+    });
+
+    
+    // Realtime Multi-Device / Multi-Tab Synchronization Engine
+    // 1. BroadcastChannel enables instant multi-tab testing on the same device without any API keys.
+    // 2. Firebase Realtime Database connects separate phones anywhere in the world.
+    let syncChannel = null;
+
+    function initSyncChannel(roomId) {
+      if (syncChannel) {
+        syncChannel.close();
+      }
+      try {
+        syncChannel = new BroadcastChannel('story_chain_' + roomId);
+        syncChannel.onmessage = (event) => {
+          handleIncomingSync(event.data);
+        };
+      } catch (err) {
+        // Fallback for environments where BroadcastChannel is restricted
+      }
+    }
+
+    function broadcastGameState() {
+      const payload = {
+        type: 'STATE_UPDATE',
+        room: roomCode,
+        gameMode: gameMode,
+        players: players,
+        currentTurnIndex: currentTurnIndex,
+        chainContributions: chainContributions,
+        stage: stageLobby.classList.contains('hidden') ? (stageTurn.classList.contains('hidden') ? 'reveal' : 'turn') : 'lobby'
+      };
+
+      if (syncChannel) {
+        syncChannel.postMessage(payload);
+      }
+
+      /* 
+      // TO SYNC TO FIREBASE ACROSS PHONES:
+      // In your deployed app, simply send the payload to your Firebase Realtime Database:
+      if (window.firebaseDb) {
+        window.firebaseDb.ref('rooms/' + roomCode).set(payload);
+      }
+      */
+    }
+
+    function handleIncomingSync(data) {
+      if (!data || data.room !== roomCode) return;
+
+      if (data.chainContributions && data.chainContributions.length > 0) {
+        chainContributions = data.chainContributions;
+        currentTurnIndex = data.currentTurnIndex;
+        gameMode = data.gameMode;
+        players = data.players;
+
+        if (data.stage === 'turn') {
+          stageLobby.classList.add('hidden');
+          stageReveal.classList.add('hidden');
+          stageTurn.classList.remove('hidden');
+          loadTurn();
+        } else if (data.stage === 'reveal') {
+          triggerGrandReveal();
+        }
+      }
+    }
+
+    // Initialize sync for default room
+    initSyncChannel(roomCode);
+
+    renderPlayerTags();
+  </script>
+</body>
+</html>
